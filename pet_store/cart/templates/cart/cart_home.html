@@ -1,0 +1,138 @@
+{% include 'base/header.html' %}
+    {% block content %}
+        <form action="{% url 'orders:place_order' %}">
+        <table class="table table-striped">
+            <thead>
+                <th scope="col">Pet Name</th>
+                <th scope="col">Quantity</th>
+                <th scope="col">Price</th>
+                <th scope="col">Total Price</th>
+                <th scope="col">Action</th>
+            </thead>
+
+            {% if flag %}
+                <tbody>
+                    {% for item in items %}
+                        <tr>
+                            <td><img src="{{ item.pet.image.url }}" width="100px" height="100px">
+                                <br/>
+                                <h4>{{ item.pet.name }}</h4>
+                            </td>
+
+                            <td>
+                                <input type="number" name="qnt" min="0" value="{{ item.quantity }}" id="quantity{{item.id}}">
+                            </td>
+                                                        
+                            <td>
+                                {{ item.pet.price }}
+                            </td>
+
+                            <td>
+                                <input type="text" name="price" value="{{ item.totalprice }}" readonly
+                                id="totalprice{{ item.id }}">
+
+                            </td>
+
+                            <td>
+                               <a href="{% url 'cart_delete' item.id %}" class="btn btn-danger" data-id="{{ item.id }}">Delete</a>
+                            </td>
+
+                         </tr>
+                         
+                         {% endfor %}
+
+                </tbody>
+            {% else %}
+                <h4>No Products Added in Cart........</h4>
+            {% endif %}    
+        </table>
+
+        <h4>Total Amount:<span id="totalamount">{{ totalamount }}</span></h4>
+
+        <button type="submit">Proceed to Pay</button>
+    </form>
+        <script>
+
+            $(document).ready(function(){
+            //  $('input[name= "qnt"]').change(function(){
+                $('form').submit(function(e){
+                    e.preventDefault();
+                    var totalamount = parseFloat($("#totalamount").text()).toFixed(2);
+                    window.location.href= $(this).attr('action')+ '?totalamount=' + totalamount;
+
+
+                });    
+                    localStorage.clear() // Local cache Remove your Data
+
+                    // Set quantity to 1 and update total price when reloaded
+
+                    $('input[name="qnt"]').each(function(){
+                        var id = $(this).closest('tr').find('a').data('id');
+                        // console.log(id);
+                        var price = $(this).closest('tr').find('td:nth-child(3)').text();
+                        
+                        var totalprice = parseFloat(price)*1;
+                        
+                        $(this).val(1);
+                    });
+
+                    // Calculate and Update total amount
+                    
+
+                    function CalculateTotalAmount(){
+                        var totalamount = 0;
+                        $('input[name = "qnt"]').each(function(){
+                            var id = $(this).closest('tr').find('a').data('id');
+                            // console.log(id);
+                            var quantity = $(this).val();
+                            // alert(quantity);
+                            var price = $(this).closest('tr').find('td:nth-child(3)').text();
+                            // alert(price);
+                            var totalprice = parseFloat(price)*quantity;
+                            // alert(totalprice);s
+                            $("#totalprice"+id).val(totalprice.toFixed(2));
+                            totalamount += totalprice; // totalamount = totalamount + totalprice
+                        });
+
+                        $("#totalamount").text(totalamount.toFixed(2));
+                    }
+                
+                
+
+                    // Updating Quantity and Total Price
+                    
+                    $('input[name= "qnt"]').change(function(){
+                        var quantity = $(this).val();
+                        var price = $(this).closest('tr').find('td:nth-child(3)').text();
+                        var id = $(this).closest('tr').find('a').data('id');
+
+                        $.ajax({
+                            url: '/cart/updatecart/' + id + '/',
+                            method: 'POST',
+                            data: {'qnt':quantity ,'price':price ,'id':id ,'csrfmiddlewaretoken':'{{ csrf_token}}'},
+                            success: function(response){
+                                $("#totalprice"+id).val(response.totalprice);
+                                CalculateTotalAmount();
+                                var totalamount = $("#totalamount").text();
+                                sessionStorage.setItem('totalamount',totalamount); // to see sessaion value
+                            },
+                            error:function(){
+                                alert("Error updating cart");
+                            }
+                        });
+                    });
+
+
+                    //calculate and update the initial amount.
+                    CalculateTotalAmount();
+                
+                });
+            
+
+        </script>
+
+
+
+
+    {% endblock %}                
+{% include 'base/footer.html' %}
